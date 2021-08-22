@@ -626,6 +626,57 @@ C23   : https://en.cppreference.com/w/c/language/attributes/fallthrough
 #	endif
 #endif
 
+
+/*
+Define XXH_MAYBE_UNUSED 
+*/
+
+#if defined (__has_c_attribute)
+#   if __has_c_attribute(maybe_unused) 
+#       define XXH_MAYBE_UNUSED [[maybe_unused]]
+#   endif
+
+#elif defined(__cplusplus) && defined(__has_cpp_attribute) 
+#   if __has_cpp_attribute(maybe_unused)
+#       define XXH_MAYBE_UNUSED [[maybe_unused]]
+#   endif
+#endif
+
+#ifndef XXH_MAYBE_UNUSED
+#   if defined(__GNUC__) && __GNUC__ >= 7
+#       define XXH_MAYBE_UNUSED __attribute__((unused))
+#   elif defined(__clang__) && (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__  >= 9))
+#       define XXH_MAYBE_UNUSED __attribute__((unused))
+#   else
+#       define XXH_MAYBE_UNUSED
+#	endif
+#endif
+
+
+/*
+Define XXH_FORCE_INLINE_ATTRIBUTE and XXH_NO_INLINE_ATTRIBUTE
+// Further work: remove the 'ATTRIBUTE' suffix, but first change the current 'XXH_FORCE_INLINE' macro 
+// to a more descriptive name, e.g. XXH_PRIVATE_CALL 
+*/
+
+#if defined(__GNUC__) && __GNUC__ >= 340
+#   define XXH_FORCE_INLINE_ATTRIBUTE __inline__ __attribute__((always_inline))
+#   define XXH_NO_INLINE_ATTRIBUTE __attribute__((noinline))
+#elif defined(__clang__) && (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__  >= 9))
+#   define XXH_FORCE_INLINE_ATTRIBUTE __attribute__((always_inline))
+#   define XXH_NO_INLINE_ATTRIBUTE __attribute__((noinline))
+#elif defined(_MSC_VER) && _MSC_VER >= 1200
+#   define XXH_FORCE_INLINE_ATTRIBUTE __forceinline
+#   define XXH_NO_INLINE_ATTRIBUTE
+#elif defined (__cplusplus) \
+  || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))   /* C99 */
+#   define XXH_FORCE_INLINE_ATTRIBUTE  inline
+#   define XXH_NO_INLINE_ATTRIBUTE
+#else
+#   define XXH_FORCE_INLINE_ATTRIBUTE 
+#   define XXH_NO_INLINE_ATTRIBUTE
+#endif
+
 /*!
  * @}
  * @ingroup public
@@ -1443,26 +1494,12 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size)
 #endif
 
 #if XXH_NO_INLINE_HINTS  /* disable inlining hints */
-#  if defined(__GNUC__)
-#    define XXH_FORCE_INLINE static __attribute__((unused))
-#  else
-#    define XXH_FORCE_INLINE static
-#  endif
+#  define XXH_FORCE_INLINE XXH_MAYBE_UNUSED static 
 #  define XXH_NO_INLINE static
 /* enable inlining hints */
-#elif defined(_MSC_VER)  /* Visual Studio */
-#  define XXH_FORCE_INLINE static __forceinline
-#  define XXH_NO_INLINE static __declspec(noinline)
-#elif defined(__GNUC__)
-#  define XXH_FORCE_INLINE static __inline__ __attribute__((always_inline, unused))
-#  define XXH_NO_INLINE static __attribute__((noinline))
-#elif defined (__cplusplus) \
-  || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))   /* C99 */
-#  define XXH_FORCE_INLINE static inline
-#  define XXH_NO_INLINE static
 #else
-#  define XXH_FORCE_INLINE static
-#  define XXH_NO_INLINE static
+#  define XXH_FORCE_INLINE static XXH_FORCE_INLINE_ATTRIBUTE XXH_MAYBE_UNUSED
+#  define XXH_NO_INLINE static XXH_NO_INLINE_ATTRIBUTE
 #endif
 
 
@@ -2018,8 +2055,7 @@ XXH32_finalize(xxh_u32 h32, const xxh_u8* ptr, size_t len, XXH_alignment align)
  * @param align Whether @p input is aligned.
  * @return The calculated hash.
  */
-XXH_FORCE_INLINE xxh_u32
-XXH32_endian_align(const xxh_u8* input, size_t len, xxh_u32 seed, XXH_alignment align)
+XXH_FORCE_INLINE xxh_u32 XXH32_endian_align(const xxh_u8* input, size_t len, xxh_u32 seed, XXH_alignment align)
 {
     const xxh_u8* bEnd = input ? input + len : NULL;
     xxh_u32 h32;
